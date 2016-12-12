@@ -146,15 +146,52 @@ router.post("/polls/vote/:pollid/:option") { (request, response, next) in
                     let json = JSON(result)
                     response.status(.OK).send(json: json)
                 }
-                
             })
-            
         }
-        
     })
 
 }
 
+
+router.delete("/polls/vote/:pollid") { (request, response, next) in
+    guard let poll = request.parameters["pollid"] else {
+        try response.status(.badRequest).end()
+        return
+    }
+    
+    database.retrieve(poll, callback: { (doc, error) in
+        if let error = error {
+            let errorMessge = error.localizedDescription
+            let status = ["status": "error", "message": error.localizedDescription]
+            let result = ["result": status]
+            let json = JSON(result)
+            response.status(.notFound).send(json: json)
+            next()
+        } else if let doc = doc {
+            let id = doc["_id"].stringValue
+            let rev = doc["_rev"].stringValue
+            database.delete(id, rev: rev, callback: { (error) in
+                defer { next() }
+                if let error = error {
+                    let errorMessage = error.localizedDescription
+                    let status = ["status": "error", "messsage": errorMessage]
+                    let result = ["result": status]
+                    let json = JSON(result)
+                    response.status(.badRequest).send(json: json)
+                } else {
+                    let status = ["status": "ok"]
+                    let result = ["result": status]
+                    let json = JSON(result)
+                    response.status(.OK).send(json: json)
+                }
+                
+            })
+        }
+
+    })
+    
+    
+}
 
 Kitura.addHTTPServer(onPort: 8090, with: router)
 Kitura.run()
